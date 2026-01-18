@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // RPCの結果を確認
-    if (!data || data.length === 0) {
+    // RPCの結果を確認 (JSON型なのでdataは直接オブジェクト)
+    if (!data) {
       console.error('[API] Bookings POST: RPC結果が空');
       return NextResponse.json(
         {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = data[0];
+    const result = data;
 
     // 失敗の場合
     if (!result.success) {

@@ -7,7 +7,17 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run check-env:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: アカウント添削会予約管理システム\n\n- Next.js 16 + TypeScript + Supabase\n- 予約管理機能（定員5名、同時予約制御）\n- Googleカレンダー連携\n- 管理画面（CSV出力、カレンダー再送）\n- URL検証機能\n- 本番デバッグ用ログ整備\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(gh auth:*)",
+      "Bash(git config:*)",
+      "Bash(ssh:*)",
+      "Bash(brew install:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
