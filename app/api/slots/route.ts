@@ -85,14 +85,20 @@ export async function POST(request: NextRequest) {
     });
 
     // 日程枠を作成
+    const insertData: any = {
+      starts_at,
+      capacity,
+      status: 'open'
+    };
+
+    // zoom_urlカラムが存在する場合のみ追加
+    if (zoom_url) {
+      insertData.zoom_url = zoom_url;
+    }
+
     const { data, error } = await supabase
       .from('slots')
-      .insert({
-        starts_at,
-        capacity,
-        zoom_url: zoom_url || null,
-        status: 'open'
-      })
+      .insert(insertData)
       .select()
       .single();
 
