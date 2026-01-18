@@ -139,18 +139,7 @@ CREATE OR REPLACE FUNCTION create_booking(
   p_genre VARCHAR,
   p_prework_url TEXT DEFAULT NULL
 )
-RETURNS TABLE (
-  booking_id UUID,
-  slot_id UUID,
-  name VARCHAR,
-  email VARCHAR,
-  coach_name VARCHAR,
-  genre VARCHAR,
-  prework_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE,
-  success BOOLEAN,
-  message TEXT
-) AS $$
+RETURNS JSON AS $$
 DECLARE
   v_slot RECORD;
   v_booking_id UUID;
@@ -164,29 +153,26 @@ BEGIN
 
   -- slot が存在しない場合
   IF NOT FOUND THEN
-    RETURN QUERY SELECT
-      NULL::UUID, NULL::UUID, NULL::VARCHAR, NULL::VARCHAR,
-      NULL::VARCHAR, NULL::VARCHAR, NULL::TEXT, NULL::TIMESTAMP WITH TIME ZONE,
-      FALSE, '日程枠が見つかりません';
-    RETURN;
+    RETURN json_build_object(
+      'success', false,
+      'message', '日程枠が見つかりません'
+    );
   END IF;
 
   -- 2. booked_count < capacity の場合のみ予約を作成
   IF v_slot.booked_count >= v_slot.capacity THEN
-    RETURN QUERY SELECT
-      NULL::UUID, NULL::UUID, NULL::VARCHAR, NULL::VARCHAR,
-      NULL::VARCHAR, NULL::VARCHAR, NULL::TEXT, NULL::TIMESTAMP WITH TIME ZONE,
-      FALSE, 'この日程枠は既に満席です';
-    RETURN;
+    RETURN json_build_object(
+      'success', false,
+      'message', 'この日程枠は既に満席です'
+    );
   END IF;
 
   -- status が closed の場合
   IF v_slot.status = 'closed' THEN
-    RETURN QUERY SELECT
-      NULL::UUID, NULL::UUID, NULL::VARCHAR, NULL::VARCHAR,
-      NULL::VARCHAR, NULL::VARCHAR, NULL::TEXT, NULL::TIMESTAMP WITH TIME ZONE,
-      FALSE, 'この日程枠は受付終了しています';
-    RETURN;
+    RETURN json_build_object(
+      'success', false,
+      'message', 'この日程枠は受付終了しています'
+    );
   END IF;
 
   -- 予約を作成（トリガーが自動的に booked_count を +1 する）
@@ -195,32 +181,33 @@ BEGIN
   RETURNING id, created_at INTO v_booking_id, v_created_at;
 
   -- 成功レスポンスを返す
-  RETURN QUERY SELECT
-    v_booking_id,
-    p_slot_id,
-    p_name,
-    p_email,
-    p_coach_name,
-    p_genre,
-    p_prework_url,
-    v_created_at,
-    TRUE,
-    '予約が完了しました'::TEXT;
+  RETURN json_build_object(
+    'success', true,
+    'message', '予約が完了しました',
+    'booking_id', v_booking_id,
+    'slot_id', p_slot_id,
+    'name', p_name,
+    'email', p_email,
+    'coach_name', p_coach_name,
+    'genre', p_genre,
+    'prework_url', p_prework_url,
+    'created_at', v_created_at
+  );
 
 EXCEPTION
   -- 重複メールアドレスエラー（UNIQUE制約違反）
   WHEN unique_violation THEN
-    RETURN QUERY SELECT
-      NULL::UUID, NULL::UUID, NULL::VARCHAR, NULL::VARCHAR,
-      NULL::VARCHAR, NULL::VARCHAR, NULL::TEXT, NULL::TIMESTAMP WITH TIME ZONE,
-      FALSE, 'このメールアドレスで既に予約済みです';
+    RETURN json_build_object(
+      'success', false,
+      'message', 'このメールアドレスで既に予約済みです'
+    );
 
   -- その他のエラー
   WHEN OTHERS THEN
-    RETURN QUERY SELECT
-      NULL::UUID, NULL::UUID, NULL::VARCHAR, NULL::VARCHAR,
-      NULL::VARCHAR, NULL::VARCHAR, NULL::TEXT, NULL::TIMESTAMP WITH TIME ZONE,
-      FALSE, SQLERRM;
+    RETURN json_build_object(
+      'success', false,
+      'message', SQLERRM
+    );
 END;
 $$ LANGUAGE plpgsql;
 
