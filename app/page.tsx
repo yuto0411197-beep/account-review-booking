@@ -34,7 +34,8 @@ export default function Home() {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-      weekday: 'short'
+      weekday: 'short',
+      timeZone: 'Asia/Tokyo'
     });
   };
 
@@ -42,6 +43,7 @@ export default function Home() {
     const date = new Date(dateString);
     return date.toLocaleTimeString('ja-JP', {
       hour: '2-digit',
+      timeZone: 'Asia/Tokyo',
       minute: '2-digit'
     });
   };

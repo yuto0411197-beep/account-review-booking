@@ -201,7 +201,8 @@ export default function BookingPage() {
       day: '2-digit',
       weekday: 'short',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Tokyo'
     });
   };
 

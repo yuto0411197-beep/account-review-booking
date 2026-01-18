@@ -80,9 +80,9 @@ export async function GET(request: NextRequest) {
         const slot = booking.slots;
         return [
           booking.id,
-          new Date(booking.created_at).toLocaleString('ja-JP'),
-          slot ? new Date(slot.starts_at).toLocaleString('ja-JP') : '',
-          slot && slot.ends_at ? new Date(slot.ends_at).toLocaleString('ja-JP') : '',
+          new Date(booking.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+          slot ? new Date(slot.starts_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '',
+          slot && slot.ends_at ? new Date(slot.ends_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '',
           `"${booking.name}"`, // ダブルクォートでエスケープ
           booking.email,
           `"${booking.coach_name}"`,

@@ -97,6 +97,10 @@ export default function AdminPage() {
 
     try {
       const token = localStorage.getItem('adminToken');
+
+      // datetime-local の値を日本時間（+09:00）として明示的に変換
+      const startsAtWithTimezone = startsAt + ':00+09:00';
+
       const response = await fetch('/api/slots', {
         method: 'POST',
         headers: {
@@ -104,7 +108,7 @@ export default function AdminPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          starts_at: startsAt,
+          starts_at: startsAtWithTimezone,
           capacity: 5
         })
       });
@@ -327,12 +331,14 @@ export default function AdminPage() {
                             month: '2-digit',
                             day: '2-digit',
                             hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
+                            timeZone: 'Asia/Tokyo'
                           })}
                           {' - '}
                           {slot.ends_at && new Date(slot.ends_at).toLocaleString('ja-JP', {
                             hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
+                            timeZone: 'Asia/Tokyo'
                           })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
