@@ -21,7 +21,13 @@
       "Bash(curl:*)",
       "Bash(npm run build:*)",
       "Bash(ls:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run dev:*)",
+      "Bash(kill:*)",
+      "Bash(node -e:*)",
+      "Bash(node test-supabase.js:*)",
+      "Bash(pkill:*)",
+      "Bash(git restore:*)"
     ]
   }
 }

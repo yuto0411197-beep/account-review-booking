@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 import { createCalendarEvent, isCalendarEnabled } from '@/lib/google-calendar';
+import { sendBookingConfirmation } from '@/lib/email';
 import { logApiRequest, logApiError } from '@/lib/env-check';
 
 // POST: 予約作成（RPC経由でトランザクション処理 + Googleカレンダー連携）
@@ -71,6 +72,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Bookings POST: 予約作成成功 - booking_id: ${result.booking_id}`);
 
+    // slot情報を取得してメール送信
+    const { data: slotData } = await supabase
+      .from('slots')
+      .select('*')
+      .eq('id', slot_id)
+      .single();
+
+    if (slotData) {
+      // 予約確認メールを送信
+      try {
+        await sendBookingConfirmation({
+          to: email,
+          name,
+          slotStartsAt: slotData.starts_at,
+          slotEndsAt: slotData.ends_at,
+          coachName: coach_name,
+          genre,
+          preworkUrl: prework_url,
+          zoomUrl: slotData.zoom_url
+        });
+        console.log(`[API] Bookings POST: 確認メール送信完了 - ${email}`);
+      } catch (emailError) {
+        console.error('[API] Bookings POST: メール送信エラー', emailError);
+        // メール送信失敗は予約処理全体を失敗させない
+      }
+    }
+
     // Googleカレンダー連携は予約成功ページでユーザーが選択する方式に変更
     // 自動連携はしない
     const calendarStatus = 'not_added';
@@ -87,7 +115,6 @@ export async function POST(request: NextRequest) {
         prework_url: result.prework_url,
         created_at: result.created_at,
         calendar_status: calendarStatus,
-        calendar_event_id: calendarEventId,
       },
       { status: 201 }
     );
