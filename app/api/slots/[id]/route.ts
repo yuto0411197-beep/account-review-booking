@@ -22,32 +22,7 @@ export async function DELETE(
       );
     }
 
-    // 予約が存在する場合は削除を拒否
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('slot_id', id);
-
-    if (bookingsError) {
-      logApiError('/api/slots DELETE - bookings check', bookingsError, { slot_id: id });
-      return NextResponse.json(
-        { error: '予約の確認中にエラーが発生しました' },
-        { status: 500 }
-      );
-    }
-
-    if (bookings && bookings.length > 0) {
-      console.warn(`[API] Slots DELETE: 予約が存在するため削除不可 - slot_id: ${id}, 予約数: ${bookings.length}`);
-      return NextResponse.json(
-        {
-          error: 'この日程枠には予約が存在するため削除できません',
-          booking_count: bookings.length
-        },
-        { status: 400 }
-      );
-    }
-
-    // 日程枠を削除
+    // 日程枠を削除（関連する予約も CASCADE で自動削除される）
     const { error } = await supabase
       .from('slots')
       .delete()

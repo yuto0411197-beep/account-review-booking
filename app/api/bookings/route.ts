@@ -71,63 +71,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Bookings POST: 予約作成成功 - booking_id: ${result.booking_id}`);
 
-    // 予約成功後、Googleカレンダーにイベントを作成
-    let calendarEventId: string | undefined;
-    let calendarStatus = 'disabled';
-
-    if (isCalendarEnabled()) {
-      console.log('[API] Bookings POST: Googleカレンダー連携開始');
-
-      // slot情報を取得
-      const { data: slotData } = await supabase
-        .from('slots')
-        .select('*')
-        .eq('id', slot_id)
-        .single();
-
-      if (slotData) {
-        const calendarResult = await createCalendarEvent({
-          slot: slotData,
-          name,
-          email,
-          coach_name,
-          genre,
-          prework_url,
-        });
-
-        if (calendarResult.success) {
-          calendarEventId = calendarResult.event_id;
-          calendarStatus = 'created';
-
-          console.log(`[API] Bookings POST: カレンダー作成成功 - event_id: ${calendarEventId}`);
-
-          // カレンダー情報をDBに保存
-          await supabase
-            .from('bookings')
-            .update({
-              calendar_event_id: calendarEventId,
-              calendar_status: calendarStatus,
-            })
-            .eq('id', result.booking_id);
-        } else {
-          console.error('[API] Bookings POST: カレンダー作成失敗');
-          console.error(`[API] Bookings POST: エラータイプ: ${calendarResult.error_type}`);
-          console.error(`[API] Bookings POST: エラーメッセージ: ${calendarResult.error}`);
-          console.error(`[API] Bookings POST: エラー詳細: ${calendarResult.error_details}`);
-          calendarStatus = 'failed';
-
-          // 失敗ステータスをDBに保存
-          await supabase
-            .from('bookings')
-            .update({
-              calendar_status: 'failed',
-            })
-            .eq('id', result.booking_id);
-        }
-      }
-    } else {
-      console.log('[API] Bookings POST: Googleカレンダー連携は無効');
-    }
+    // Googleカレンダー連携は予約成功ページでユーザーが選択する方式に変更
+    // 自動連携はしない
+    const calendarStatus = 'not_added';
 
     // 成功の場合
     return NextResponse.json(

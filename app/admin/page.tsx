@@ -93,8 +93,12 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteSlot = async (slotId: string) => {
-    if (!confirm('この日程枠を削除してもよろしいですか？\n※予約がある場合は削除できません')) {
+  const handleDeleteSlot = async (slotId: string, hasBookings: boolean) => {
+    const message = hasBookings
+      ? 'この日程枠を削除してもよろしいですか？\n※この日程枠の予約もすべて削除されます'
+      : 'この日程枠を削除してもよろしいですか？';
+
+    if (!confirm(message)) {
       return;
     }
 
@@ -430,14 +434,9 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <button
-                          onClick={() => handleDeleteSlot(slot.id)}
-                          disabled={slot.booked_count > 0}
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                            slot.booked_count > 0
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-red-50 text-red-600 hover:bg-red-100'
-                          }`}
-                          title={slot.booked_count > 0 ? '予約があるため削除できません' : '削除'}
+                          onClick={() => handleDeleteSlot(slot.id, slot.booked_count > 0)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100"
+                          title={slot.booked_count > 0 ? `予約${slot.booked_count}件と一緒に削除` : '削除'}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
