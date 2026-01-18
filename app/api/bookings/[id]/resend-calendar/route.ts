@@ -7,9 +7,10 @@ import { logApiRequest, logApiError } from '@/lib/env-check';
 // POST: カレンダー招待の再送（管理者のみ）
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  logApiRequest('POST', `/api/bookings/${params.id}/resend-calendar`);
+  const { id } = await params;
+  logApiRequest('POST', `/api/bookings/${id}/resend-calendar`);
 
   try {
     // 管理者認証チェック
@@ -21,7 +22,7 @@ export async function POST(
       );
     }
 
-    const bookingId = params.id;
+    const bookingId = id;
 
     console.log(`[API] Resend Calendar: 再送開始 - booking_id: ${bookingId}`);
 
@@ -155,7 +156,7 @@ export async function POST(
       );
     }
   } catch (error) {
-    logApiError('/api/bookings/resend-calendar', error, { bookingId: params.id });
+    logApiError('/api/bookings/resend-calendar', error, { bookingId: id });
     return NextResponse.json(
       { error: 'サーバーエラーが発生しました' },
       { status: 500 }
