@@ -10,6 +10,7 @@ CREATE TABLE slots (
   capacity INTEGER NOT NULL DEFAULT 5,
   booked_count INTEGER NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  zoom_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -27,6 +27,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18"
+    "@tailwindcss/postcss": "^4.1.18",
+    "dotenv": "^17.2.3"
   }
 }

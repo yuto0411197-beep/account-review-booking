@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { starts_at, capacity = 5 } = body;
+    const { starts_at, capacity = 5, zoom_url } = body;
 
     if (!starts_at) {
       console.warn('[API] Slots POST: starts_at が未指定');
@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       .insert({
         starts_at,
         capacity,
+        zoom_url: zoom_url || null,
         status: 'open'
       })
       .select()

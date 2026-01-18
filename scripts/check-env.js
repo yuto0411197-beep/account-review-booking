@@ -5,6 +5,9 @@
  * npm run dev や npm run build の前に実行される
  */
 
+// .env.local ファイルを読み込む
+require('dotenv').config({ path: '.env.local' });
+
 function checkEnv() {
   console.log('=== 環境変数チェック ===');
   console.log(`環境: ${process.env.NODE_ENV || 'development'}`);

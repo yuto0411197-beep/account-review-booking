@@ -18,6 +18,7 @@ export interface Database {
           capacity: number
           booked_count: number
           status: 'open' | 'closed'
+          zoom_url: string | null
           created_at: string
         }
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           capacity?: number
           booked_count?: number
           status?: 'open' | 'closed'
+          zoom_url?: string | null
           created_at?: string
         }
         Update: {
@@ -34,6 +36,7 @@ export interface Database {
           capacity?: number
           booked_count?: number
           status?: 'open' | 'closed'
+          zoom_url?: string | null
           created_at?: string
         }
       }

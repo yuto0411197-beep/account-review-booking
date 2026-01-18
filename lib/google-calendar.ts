@@ -148,6 +148,8 @@ export async function createCalendarEvent(
 
     // イベント説明文
     const descriptionParts = [
+      '【アカウント添削会のご案内】',
+      '',
       '【予約情報】',
       `予約者名: ${name}`,
       `メールアドレス: ${email}`,
@@ -155,9 +157,20 @@ export async function createCalendarEvent(
       `ジャンル: ${genre}`,
     ];
 
-    if (prework_url) {
-      descriptionParts.push('', '【事前資料】', prework_url);
+    if (slot.zoom_url) {
+      descriptionParts.push('', '【Zoom会議室】', slot.zoom_url);
     }
+
+    if (prework_url) {
+      descriptionParts.push('', '【事前提出物】', prework_url);
+    }
+
+    descriptionParts.push(
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━',
+      '当日お会いできることを楽しみにしております。',
+      'ご不明な点がございましたら、お気軽にお問い合わせください。'
+    );
 
     const description = descriptionParts.join('\n');
 
