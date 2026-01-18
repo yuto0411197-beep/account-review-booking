@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -21,7 +21,7 @@ interface Slot {
   ends_at: string | null;
 }
 
-export default function BookingSuccessPage() {
+function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const bookingId = searchParams.get('bookingId');
@@ -127,5 +127,17 @@ export default function BookingSuccessPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function BookingSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">読み込み中...</div>
+      </div>
+    }>
+      <BookingSuccessContent />
+    </Suspense>
   );
 }
