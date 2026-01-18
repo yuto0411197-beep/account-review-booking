@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>同時予約テスト</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .description {
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #0070f3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #0051cc;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #666;
+    }
+    button.secondary:hover {
+      background: #444;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .status.info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+    }
+    .status.success {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf50;
+    }
+    .status.error {
+      background: #ffebee;
+      border-left: 4px solid #f44336;
+    }
+    .log {
+      margin-top: 30px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry {
+      margin-bottom: 8px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+    }
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    .log-success {
+      color: #4ec9b0;
+    }
+    .log-error {
+      color: #f48771;
+    }
+    .log-info {
+      color: #569cd6;
+    }
+    .log-warn {
+      color: #dcdcaa;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔥 同時予約テストツール</h1>
+    <p class="description">
+      このツールは、複数の予約リクエストを同時に送信して、定員超過が防止されるかをテストします。<br>
+      Row-level lockingとRPC関数が正しく動作していれば、定員5名の枠に対して10件の同時リクエストを送っても、5件だけが成功するはずです。
+    </p>
+
+    <div class="section">
+      <label for="apiUrl">API URL (例: http://localhost:3000 または https://your-app.vercel.app)</label>
+      <input type="text" id="apiUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+    </div>
+
+    <div class="section">
+      <label for="slotId">テスト対象の日程枠ID</label>
+      <input type="text" id="slotId" placeholder="Slot ID (UUIDを入力)">
+      <button onclick="fetchSlots()" style="margin-top: 10px;" class="secondary">日程枠一覧を取得</button>
+      <select id="slotSelect" style="margin-top: 10px; display: none;" onchange="selectSlot()">
+        <option value="">日程枠を選択...</option>
+      </select>
+    </div>
+
+    <div class="grid">
+      <div class="section">
+        <label for="concurrency">同時リクエスト数</label>
+        <input type="number" id="concurrency" value="10" min="1" max="50">
+      </div>
+      <div class="section">
+        <label for="delay">リクエスト間隔 (ms)</label>
+        <input type="number" id="delay" value="0" min="0" max="1000">
+      </div>
+    </div>
+
+    <div class="section">
+      <button onclick="runTest()" id="runBtn">🚀 テスト実行</button>
+      <button onclick="clearLog()" class="secondary">ログクリア</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script>
+    let testRunning = false;
+    let logEntries = [];
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString('ja-JP');
+      const entry = { timestamp, message, type };
+      logEntries.push(entry);
+      updateLog();
+    }
+
+    function updateLog() {
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML = logEntries.map(entry => `
+        <div class="log-entry">
+          <span class="log-${entry.type}">[${entry.timestamp}]</span> ${entry.message}
+        </div>
+      `).join('');
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function clearLog() {
+      logEntries = [];
+      updateLog();
+      document.getElementById('status').innerHTML = '';
+    }
+
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = `status ${type}`;
+      statusDiv.textContent = message;
+    }
+
+    async function fetchSlots() {
+      const apiUrl = document.getElementById('apiUrl').value.trim();
+      if (!apiUrl) {
+        alert('API URLを入力してください');
+        return;
+      }
+
+      try {
+        log(`日程枠一覧を取得中... (${apiUrl}/api/slots)`, 'info');
+        const response = await fetch(`${apiUrl}/api/slots`);
+
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+
+        const slots = await response.json();
+        log(`日程枠を ${slots.length} 件取得しました`, 'success');
+
+        const select = document.getElementById('slotSelect');
+        select.innerHTML = '<option value="">日程枠を選択...</option>';
+
+        slots.forEach(slot => {
+          const option = document.createElement('option');
+          option.value = slot.id;
+          const date = new Date(slot.starts_at).toLocaleString('ja-JP');
+          const capacity = slot.capacity;
+          const booked = slot.booked_count;
+          const remaining = capacity - booked;
+          option.textContent = `${date} | 残席: ${remaining}/${capacity} | ${slot.status}`;
+          option.dataset.slotInfo = JSON.stringify(slot);
+          select.appendChild(option);
+        });
+
+        select.style.display = 'block';
+      } catch (error) {
+        log(`エラー: ${error.message}`, 'error');
+        showStatus('日程枠の取得に失敗しました', 'error');
+      }
+    }
+
+    function selectSlot() {
+      const select = document.getElementById('slotSelect');
+      const selectedOption = select.options[select.selectedIndex];
+
+      if (selectedOption.value) {
+        document.getElementById('slotId').value = selectedOption.value;
+        const slotInfo = JSON.parse(selectedOption.dataset.slotInfo);
+        log(`日程枠を選択: 残席 ${slotInfo.capacity - slotInfo.booked_count}/${slotInfo.capacity}`, 'info');
+      }
+    }
+
+    async function runTest() {
+      if (testRunning) {
+        alert('テスト実行中です');
+        return;
+      }
+
+      const apiUrl = document.getElementById('apiUrl').value.trim();
+      const slotId = document.getElementById('slotId').value.trim();
+      const concurrency = parseInt(document.getElementById('concurrency').value);
+      const delay = parseInt(document.getElementById('delay').value);
+
+      if (!apiUrl || !slotId) {
+        alert('API URLと日程枠IDを入力してください');
+        return;
+      }
+
+      testRunning = true;
+      document.getElementById('runBtn').disabled = true;
+
+      log('========================================', 'info');
+      log('🔥 同時予約テスト開始', 'warn');
+      log(`API URL: ${apiUrl}`, 'info');
+      log(`Slot ID: ${slotId}`, 'info');
+      log(`同時リクエスト数: ${concurrency}`, 'info');
+      log(`リクエスト間隔: ${delay}ms`, 'info');
+      log('========================================', 'info');
+
+      showStatus('テスト実行中...', 'info');
+
+      // テスト開始前のslot状態を取得
+      try {
+        const slotsResponse = await fetch(`${apiUrl}/api/slots`);
+        const slots = await slotsResponse.json();
+        const targetSlot = slots.find(s => s.id === slotId);
+
+        if (targetSlot) {
+          log(`[事前状態] capacity: ${targetSlot.capacity}, booked_count: ${targetSlot.booked_count}, status: ${targetSlot.status}`, 'info');
+        }
+      } catch (error) {
+        log(`事前状態の取得に失敗: ${error.message}`, 'warn');
+      }
+
+      const requests = [];
+      const startTime = Date.now();
+
+      for (let i = 1; i <= concurrency; i++) {
+        const bookingData = {
+          slot_id: slotId,
+          name: `テストユーザー${i}`,
+          email: `concurrent-test-${i}-${Date.now()}@example.com`,
+          coach_name: `講師${i}`,
+          genre: `テスト${i % 3 === 0 ? 'ビジネス' : i % 3 === 1 ? 'エンタメ' : '教育'}`
+        };
+
+        const request = (async () => {
+          if (delay > 0 && i > 1) {
+            await new Promise(resolve => setTimeout(resolve, delay * (i - 1)));
+          }
+
+          const requestStart = Date.now();
+
+          try {
+            const response = await fetch(`${apiUrl}/api/bookings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bookingData)
+            });
+
+            const result = await response.json();
+            const duration = Date.now() - requestStart;
+
+            return {
+              index: i,
+              success: response.ok,
+              status: response.status,
+              data: result,
+              duration
+            };
+          } catch (error) {
+            return {
+              index: i,
+              success: false,
+              error: error.message,
+              duration: Date.now() - requestStart
+            };
+          }
+        })();
+
+        requests.push(request);
+      }
+
+      // すべてのリクエストを並行実行
+      const results = await Promise.all(requests);
+      const totalDuration = Date.now() - startTime;
+
+      // 結果を集計
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+
+      log('========================================', 'info');
+      log('📊 テスト結果サマリー', 'warn');
+      log(`総実行時間: ${totalDuration}ms`, 'info');
+      log(`成功: ${successCount}件`, 'success');
+      log(`失敗: ${failureCount}件`, 'error');
+      log('========================================', 'info');
+
+      // 個別結果をログ出力
+      results.forEach(result => {
+        if (result.success) {
+          log(`[成功 #${result.index}] ${result.duration}ms - booking_id: ${result.data.id?.substring(0, 8)}...`, 'success');
+        } else {
+          const errorMsg = result.error || result.data?.error || 'Unknown error';
+          log(`[失敗 #${result.index}] ${result.duration}ms - ${errorMsg}`, 'error');
+        }
+      });
+
+      // テスト後のslot状態を取得
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500)); // 少し待つ
+        const slotsResponse = await fetch(`${apiUrl}/api/slots`);
+        const slots = await slotsResponse.json();
+        const targetSlot = slots.find(s => s.id === slotId);
+
+        if (targetSlot) {
+          log('========================================', 'info');
+          log(`[事後状態] capacity: ${targetSlot.capacity}, booked_count: ${targetSlot.booked_count}, status: ${targetSlot.status}`, 'info');
+
+          // 検証
+          if (targetSlot.booked_count > targetSlot.capacity) {
+            log('❌ 警告: booked_count が capacity を超えています！', 'error');
+            showStatus('❌ テスト失敗: 定員超過が発生しました', 'error');
+          } else if (targetSlot.booked_count === targetSlot.capacity && targetSlot.status === 'closed') {
+            log('✅ 検証成功: 定員ちょうどで満席になりました', 'success');
+            showStatus('✅ テスト成功: 定員超過は発生しませんでした', 'success');
+          } else {
+            log('✅ 検証成功: booked_count は capacity 以下です', 'success');
+            showStatus('✅ テスト成功: 定員超過は発生しませんでした', 'success');
+          }
+          log('========================================', 'info');
+        }
+      } catch (error) {
+        log(`事後状態の取得に失敗: ${error.message}`, 'warn');
+      }
+
+      testRunning = false;
+      document.getElementById('runBtn').disabled = false;
+    }
+
+    // 初期ログ
+    log('同時予約テストツールを起動しました', 'info');
+    log('1. API URLを確認してください（ローカル: http://localhost:3000）', 'info');
+    log('2. 「日程枠一覧を取得」ボタンをクリックしてください', 'info');
+    log('3. テストする日程枠を選択してください', 'info');
+    log('4. 「テスト実行」ボタンをクリックしてください', 'info');
+  </script>
+</body>
+</html>
