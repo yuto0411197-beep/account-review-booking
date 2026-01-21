@@ -66,11 +66,12 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { zoom_url, status } = body;
+    const { zoom_url, status, capacity } = body;
 
     const updateData: any = {};
     if (zoom_url !== undefined) updateData.zoom_url = zoom_url;
     if (status !== undefined) updateData.status = status;
+    if (capacity !== undefined) updateData.capacity = capacity;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
