@@ -29,6 +29,7 @@ export default function AdminBookingsPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -78,6 +79,63 @@ export default function AdminBookingsPage() {
     });
   };
 
+  const handleExportAll = async () => {
+    setExporting(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/bookings/export', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('エクスポートに失敗しました');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `all_bookings_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError('CSVエクスポートに失敗しました');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportSlot = async (slotId: string) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/bookings/export?slot_id=${slotId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('エクスポートに失敗しました');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bookings_${slotId.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError('CSVエクスポートに失敗しました');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ja-JP', {
@@ -113,7 +171,7 @@ export default function AdminBookingsPage() {
       <div className="max-w-7xl mx-auto">
         {/* ヘッダー */}
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center justify-between mb-4">
             <Link
               href="/admin"
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -123,6 +181,18 @@ export default function AdminBookingsPage() {
               </svg>
               管理画面に戻る
             </Link>
+            {slots.length > 0 && (
+              <button
+                onClick={handleExportAll}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {exporting ? 'エクスポート中...' : '全件CSVエクスポート'}
+              </button>
+            )}
           </div>
           <h1 className="text-3xl font-bold text-gray-900">予約管理</h1>
           <p className="mt-2 text-gray-600">日程ごとの参加者と提出物を確認できます</p>
@@ -154,9 +224,23 @@ export default function AdminBookingsPage() {
                         {formatTime(slot.starts_at)} - {slot.ends_at && formatTime(slot.ends_at)}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">{slot.booked_count}</div>
-                      <div className="text-blue-100 text-sm">名の予約</div>
+                    <div className="flex items-center gap-4">
+                      {slot.bookings && slot.bookings.length > 0 && (
+                        <button
+                          onClick={() => handleExportSlot(slot.id)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors"
+                          title="この日程の予約をCSVエクスポート"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          CSV
+                        </button>
+                      )}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">{slot.booked_count}</div>
+                        <div className="text-blue-100 text-sm">名の予約</div>
+                      </div>
                     </div>
                   </div>
                   {slot.zoom_url && (

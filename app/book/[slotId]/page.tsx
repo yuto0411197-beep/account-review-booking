@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Slot } from '@/lib/types';
 import Link from 'next/link';
-import { validatePreworkUrl, normalizePreworkUrl, getUrlTypeDescription } from '@/lib/url-validation';
+import { validatePreworkUrl, normalizePreworkUrl } from '@/lib/url-validation';
 
 export default function BookingPage() {
   const params = useParams();
@@ -19,8 +19,6 @@ export default function BookingPage() {
   const [urlSuggestions, setUrlSuggestions] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     coach_name: '',
     genre: '',
     prework_url: ''
@@ -56,7 +54,6 @@ export default function BookingPage() {
     setUrlWarning('');
     setUrlSuggestions([]);
 
-    // 事前資料URLのバリデーション
     const urlValidation = validatePreworkUrl(formData.prework_url);
 
     if (!urlValidation.valid) {
@@ -69,7 +66,6 @@ export default function BookingPage() {
       return;
     }
 
-    // URLを正規化
     const normalizedUrl = normalizePreworkUrl(formData.prework_url);
 
     try {
@@ -88,32 +84,25 @@ export default function BookingPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // エラーレスポンスのハンドリング
         if (response.status === 400) {
-          // バリデーションエラーまたは満席
           if (data.error?.includes('満席')) {
-            setError('申し訳ございません。この日程枠は既に満席になりました。他の日程をお選びください。');
+            setError('申し訳ございません。この日程枠は既に満席になりました。');
           } else if (data.error?.includes('既に予約済み')) {
-            setError('このメールアドレスで既に予約されています。別のメールアドレスをご利用ください。');
+            setError('このメールアドレスで既に予約されています。');
           } else {
             setError(data.error || '入力内容を確認してください');
           }
-        } else if (response.status === 500) {
-          setError('サーバーエラーが発生しました。しばらく待ってから再度お試しください。');
         } else {
-          setError(data.error || '予約に失敗しました');
+          setError('予約に失敗しました。もう一度お試しください。');
         }
         setSubmitting(false);
-        // エラー時はページトップにスクロール
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
-      // 予約成功 - 完了ページへ遷移
       router.push(`/book/success?bookingId=${data.id}`);
     } catch (err) {
-      console.error('Booking submission error:', err);
-      setError('ネットワークエラーが発生しました。インターネット接続を確認してから再度お試しください。');
+      setError('ネットワークエラーが発生しました。');
       setSubmitting(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -127,7 +116,6 @@ export default function BookingPage() {
       [name]: value
     });
 
-    // 事前資料URLのリアルタイムバリデーション
     if (name === 'prework_url' && value.trim() !== '') {
       const urlValidation = validatePreworkUrl(value);
 
@@ -147,316 +135,198 @@ export default function BookingPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen p-8 bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-500">読み込み中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !slot) {
-    return (
-      <div className="min-h-screen p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 border-l-4 border-red-500">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h2 className="text-xl font-bold text-red-800 mb-2">エラー</h2>
-                <p className="text-red-700">{error || '日程枠が見つかりません'}</p>
-                <Link
-                  href="/"
-                  className="inline-flex items-center mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  日程一覧に戻る
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (slot.status === 'closed') {
-    return (
-      <div className="min-h-screen p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 border-l-4 border-yellow-500">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h2 className="text-xl font-bold text-yellow-800 mb-2">満席です</h2>
-                <p className="text-yellow-700">この日程枠は既に満席です。</p>
-                <Link
-                  href="/"
-                  className="inline-flex items-center mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  日程一覧に戻る
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const formatDateTime = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('ja-JP', {
+    return date.toLocaleDateString('ja-JP', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
       timeZone: 'Asia/Tokyo'
     });
   };
 
-  return (
-    <div className="min-h-screen p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50">
-      <main className="max-w-3xl mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center mb-6 text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          日程一覧に戻る
-        </Link>
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('ja-JP', {
+      hour: '2-digit',
+      timeZone: 'Asia/Tokyo',
+      minute: '2-digit'
+    });
+  };
 
-        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-6">
-          <h1 className="text-3xl font-bold mb-6 text-gray-900 flex items-center">
-            <svg className="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            予約フォーム
-          </h1>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#d2d2d7] border-t-[#1d1d1f] rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl mb-8 shadow-sm">
-            <h2 className="font-bold text-blue-900 mb-3 flex items-center text-lg">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              選択した日程
-            </h2>
-            <div className="text-blue-800">
-              <p className="font-semibold text-lg">{formatDateTime(slot.starts_at)} - {slot.ends_at && formatDateTime(slot.ends_at)}</p>
-              <p className="text-sm mt-2 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                残席: <strong className="ml-1">{slot.capacity - slot.booked_count}名</strong>
-              </p>
+  if (error && !slot) {
+    return (
+      <div className="min-h-screen bg-white">
+        <header className="sticky top-0 z-50 bg-[#f5f5f7] border-b border-[#d2d2d7]/50">
+          <div className="max-w-[680px] mx-auto px-6">
+            <div className="flex items-center h-11">
+              <Link href="/" className="text-[12px] text-[#6e6e73] hover:text-[#1d1d1f] transition-colors">
+                ← 戻る
+              </Link>
             </div>
           </div>
+        </header>
+        <main className="max-w-[680px] mx-auto px-6 py-20 text-center">
+          <p className="text-[17px] text-[#86868b]">{error}</p>
+        </main>
+      </div>
+    );
+  }
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                お名前 <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm"
-                required
-              />
+  if (!slot || slot.status === 'closed') {
+    return (
+      <div className="min-h-screen bg-white">
+        <header className="sticky top-0 z-50 bg-[#f5f5f7] border-b border-[#d2d2d7]/50">
+          <div className="max-w-[680px] mx-auto px-6">
+            <div className="flex items-center h-11">
+              <Link href="/" className="text-[12px] text-[#6e6e73] hover:text-[#1d1d1f] transition-colors">
+                ← 戻る
+              </Link>
             </div>
+          </div>
+        </header>
+        <main className="max-w-[680px] mx-auto px-6 py-20 text-center">
+          <p className="text-[17px] text-[#86868b]">この日程は満席です。</p>
+        </main>
+      </div>
+    );
+  }
 
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                メールアドレス <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm"
-                required
-              />
-            </div>
+  return (
+    <div className="min-h-screen bg-[#f5f5f7]">
+      {/* ヘッダー - Apple Store風ダークナビゲーション */}
+      <header className="sticky top-0 z-50 bg-[#1d1d1f]">
+        <div className="max-w-[680px] mx-auto px-6">
+          <div className="flex items-center h-11">
+            <Link href="/" className="text-[12px] text-[#f5f5f7]/80 hover:text-white transition-colors">
+              ← 戻る
+            </Link>
+          </div>
+        </div>
+      </header>
 
+      {/* ヒーローセクション - 白背景 */}
+      <section className="bg-white pt-16 pb-12 text-center">
+        <div className="max-w-[680px] mx-auto px-6">
+          <h1 className="text-[40px] sm:text-[48px] font-semibold text-[#1d1d1f] tracking-[-0.003em] leading-[1.07] mb-3">
+            予約フォーム
+          </h1>
+          <p className="text-[17px] sm:text-[19px] text-[#86868b]">
+            必要事項を入力してください
+          </p>
+        </div>
+      </section>
+
+      <main className="max-w-[680px] mx-auto px-6 py-10">
+        {/* 選択日程 - サンドベージュ */}
+        <div className="bg-[#f0e6d8] rounded-[20px] p-8 mb-8">
+          <p className="text-[11px] sm:text-[12px] text-[#6e6e73] uppercase tracking-[0.08em] font-medium mb-3">
+            Selected Date
+          </p>
+          <div className="text-[32px] sm:text-[40px] font-semibold text-[#1d1d1f] tracking-[-0.02em] leading-tight mb-2">
+            {formatDate(slot.starts_at)}
+          </div>
+          <div className="text-[15px] sm:text-[17px] text-[#1d1d1f]">
+            {formatTime(slot.starts_at)} – {slot.ends_at && formatTime(slot.ends_at)}
+          </div>
+        </div>
+
+        {/* エラー表示 */}
+        {error && (
+          <div className="bg-[#fff5f5] border border-[#fecaca] rounded-[12px] p-4 mb-6">
+            <p className="text-[15px] text-[#dc2626]">{error}</p>
+            {urlSuggestions.length > 0 && (
+              <ul className="mt-2 text-[13px] text-[#86868b]">
+                {urlSuggestions.map((s, i) => <li key={i}>・{s}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* フォーム */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-white rounded-[18px] p-8 space-y-6">
+            {/* お名前 */}
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                講師名 <span className="text-red-600">*</span>
+              <label className="block text-[13px] font-semibold text-[#1d1d1f] mb-2">
+                お名前 <span className="text-[#ff3b30]">*</span>
               </label>
               <input
                 type="text"
                 name="coach_name"
                 value={formData.coach_name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm"
+                placeholder="例: 【講師】〇〇"
+                className="w-full px-4 py-3.5 bg-[#f5f5f7] border-0 rounded-[12px] text-[17px] text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3] transition-all"
                 required
               />
             </div>
 
+            {/* ジャンル */}
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                ジャンル <span className="text-red-600">*</span>
+              <label className="block text-[13px] font-semibold text-[#1d1d1f] mb-2">
+                ジャンル <span className="text-[#ff3b30]">*</span>
               </label>
               <input
                 type="text"
                 name="genre"
                 value={formData.genre}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm"
                 placeholder="例: ビジネス、エンタメ、教育など"
+                className="w-full px-4 py-3.5 bg-[#f5f5f7] border-0 rounded-[12px] text-[17px] text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3] transition-all"
                 required
               />
             </div>
 
+            {/* 事前提出物URL */}
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                事前課題URL（任意）
+              <label className="block text-[13px] font-semibold text-[#1d1d1f] mb-2">
+                事前提出物URL（添削をスムーズに進めるため）
               </label>
               <input
                 type="url"
                 name="prework_url"
                 value={formData.prework_url}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 shadow-sm ${
-                  urlWarning && formData.prework_url
-                    ? 'border-yellow-400 bg-yellow-50 focus:ring-2 focus:ring-yellow-500'
-                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                placeholder="https://docs.google.com/..."
+                className={`w-full px-4 py-3.5 bg-[#f5f5f7] border-0 rounded-[12px] text-[17px] text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:ring-2 transition-all ${
+                  urlWarning ? 'ring-2 ring-[#ff9500]' : 'focus:ring-[#0071e3]'
                 }`}
-                placeholder="https://docs.google.com/spreadsheets/d/xxxxx/edit"
               />
-
-              {/* URLガイダンス */}
-              <div className="mt-3 text-xs space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <p className="text-gray-700 flex items-start">
-                  <span className="mr-2">📌</span>
-                  <span><strong>推奨:</strong> Googleスプレッドシート、Googleドキュメント、Notion</span>
-                </p>
-                <p className="text-gray-700 flex items-start">
-                  <span className="mr-2">📝</span>
-                  <span><strong>共有設定:</strong> 「リンクを知っている全員」に設定してください</span>
-                </p>
-                <details className="text-gray-600">
-                  <summary className="cursor-pointer hover:text-gray-800 font-medium flex items-center">
-                    <span className="mr-2">📖</span>
-                    設定手順を見る
-                  </summary>
-                  <div className="mt-3 pl-6 space-y-2 border-l-2 border-blue-300">
-                    <p><strong>Googleスプレッドシート/ドキュメント:</strong></p>
-                    <ol className="list-decimal list-inside space-y-1.5 text-gray-700">
-                      <li>ファイルを開いて、右上の「共有」ボタンをクリック</li>
-                      <li>「リンクを知っている全員」に変更</li>
-                      <li>権限を「閲覧者」または「編集者」に設定</li>
-                      <li>「リンクをコピー」をクリックしてURLを取得</li>
-                    </ol>
-                    <p className="mt-2"><strong>例:</strong></p>
-                    <code className="text-xs bg-white px-3 py-1.5 rounded border border-gray-300 block">
-                      https://docs.google.com/spreadsheets/d/1abc.../edit
-                    </code>
-                  </div>
-                </details>
-              </div>
-
-              {/* URLの警告・エラーメッセージ */}
+              <p className="mt-3 text-[12px] text-[#86868b]">
+                推奨: Googleスプレッドシート、Googleドキュメント、Notion
+              </p>
               {urlWarning && formData.prework_url && (
-                <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-sm">
-                  <div className="flex items-start">
-                    <svg className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-yellow-800 font-semibold text-sm">{urlWarning}</p>
-                      {urlSuggestions.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-yellow-700 text-xs font-semibold mb-1">対処法:</p>
-                          <ul className="space-y-1">
-                            {urlSuggestions.map((suggestion, index) => (
-                              <li key={index} className="text-yellow-700 text-xs flex items-start">
-                                <span className="mr-2">•</span>
-                                <span>{suggestion}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <p className="mt-2 text-[13px] text-[#ff9500]">{urlWarning}</p>
               )}
             </div>
+          </div>
 
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm">
-                <div className="flex items-start">
-                  <svg className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-red-800 font-bold">エラー</p>
-                    <p className="text-red-700 text-sm mt-1">{error}</p>
-                    {urlSuggestions.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-red-700 text-xs font-semibold mb-1">対処法:</p>
-                        <ul className="space-y-1">
-                          {urlSuggestions.map((suggestion, index) => (
-                            <li key={index} className="text-red-700 text-xs flex items-start">
-                              <span className="mr-2">•</span>
-                              <span>{suggestion}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+          {/* 送信ボタン */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-4 rounded-[980px] text-[17px] font-medium bg-[#0071e3] text-white hover:bg-[#0077ed] disabled:bg-[#d2d2d7] disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                予約中...
+              </>
+            ) : (
+              '予約を確定する'
             )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:transform-none flex items-center justify-center"
-            >
-              {submitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  予約中...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  予約を確定する
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+          </button>
+        </form>
       </main>
     </div>
   );

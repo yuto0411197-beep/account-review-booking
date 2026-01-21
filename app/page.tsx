@@ -31,9 +31,15 @@ export default function Home() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'numeric',
+      day: 'numeric',
+      timeZone: 'Asia/Tokyo'
+    });
+  };
+
+  const formatWeekday = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ja-JP', {
       weekday: 'short',
       timeZone: 'Asia/Tokyo'
     });
@@ -52,141 +58,181 @@ export default function Home() {
     router.push(`/book/${slotId}`);
   };
 
-  return (
-    <div className="min-h-screen p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50">
-      <main className="max-w-5xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
-            アカウント添削会 予約
-          </h1>
-          <Link
-            href="/admin"
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            管理画面
-          </Link>
-        </div>
+  // カード背景色 - サンドベージュで統一
+  const cardBgColor = 'bg-[#f0e6d8]';
 
-        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-6 transition-all duration-200 hover:shadow-xl">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 border-b pb-3">日程一覧</h2>
+  return (
+    <div className="min-h-screen bg-white">
+      {/* ヘッダー - ライトグレー */}
+      <header className="sticky top-0 z-50 bg-[#f5f5f7] border-b border-[#d2d2d7]/50">
+        <div className="max-w-[980px] mx-auto px-6">
+          <div className="flex justify-between items-center h-11">
+            <span className="text-[#1d1d1f] font-medium text-[12px] tracking-[-0.01em]">
+              アカウント添削会
+            </span>
+            <Link
+              href="/admin"
+              className="text-[12px] text-[#6e6e73] hover:text-[#1d1d1f] transition-colors"
+            >
+              管理画面
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* ヒーローセクション */}
+      <section className="bg-white pt-16 sm:pt-20 pb-10 sm:pb-14 text-center">
+        <div className="max-w-[980px] mx-auto px-6">
+          <h1 className="text-[40px] sm:text-[56px] font-semibold text-[#1d1d1f] tracking-[-0.015em] leading-[1.05] mb-3 sm:mb-4">
+            予約する
+          </h1>
+          <p className="text-[17px] sm:text-[21px] text-[#6e6e73] font-normal leading-[1.4] max-w-[500px] mx-auto">
+            ご希望の日程を選んで、<br className="sm:hidden" />予約を完了してください。
+          </p>
+        </div>
+      </section>
+
+      {/* 日程カードセクション */}
+      <section className="bg-[#f5f5f7] py-14 sm:py-20">
+        <div className="max-w-[1000px] mx-auto px-6">
+          <div className="text-center mb-10 sm:mb-14">
+            <p className="text-[12px] sm:text-[13px] text-[#6e6e73] uppercase tracking-[0.06em] mb-2">
+              SCHEDULE
+            </p>
+            <h2 className="text-[28px] sm:text-[40px] font-semibold text-[#1d1d1f] tracking-[-0.015em] leading-[1.1]">
+              予約可能な日程
+            </h2>
+          </div>
 
           {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-500">読み込み中...</p>
+            <div className="text-center py-20">
+              <div className="inline-block w-8 h-8 border-2 border-[#d2d2d7] border-t-[#1d1d1f] rounded-full animate-spin"></div>
             </div>
           ) : slots.length === 0 ? (
-            <div className="text-center py-16">
-              <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-gray-500 text-lg">現在予約可能な日程枠はありません</p>
+            <div className="text-center py-20">
+              <p className="text-[17px] text-[#6e6e73]">
+                現在予約可能な日程はありません。
+              </p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-6 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
-                    <tr>
-                      <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        日付
-                      </th>
-                      <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        時間
-                      </th>
-                      <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        残席数
-                      </th>
-                      <th className="px-4 sm:px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        予約
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {slots.map((slot) => {
-                      const remainingSeats = slot.capacity - slot.booked_count;
-                      const isFull = slot.status === 'closed';
+            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {slots.map((slot) => {
+                const remainingSeats = slot.capacity - slot.booked_count;
+                const isFull = slot.status === 'closed';
 
-                      return (
-                        <tr key={slot.id} className={`transition-colors duration-150 ${isFull ? 'bg-gray-50' : 'hover:bg-blue-50/30'}`}>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {formatDate(slot.starts_at)}
-                            </div>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {formatTime(slot.starts_at)} - {slot.ends_at && formatTime(slot.ends_at)}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              (1時間)
-                            </div>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                              isFull
-                                ? 'bg-red-100 text-red-800'
-                                : remainingSeats <= 2
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {isFull ? '満席' : `残り${remainingSeats}名`}
-                            </div>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            {isFull ? (
-                              <button
-                                className="px-6 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm font-medium"
-                                disabled
-                              >
-                                満席
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleBooking(slot.id)}
-                                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                              >
-                                予約する
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                return (
+                  <div
+                    key={slot.id}
+                    className={`
+                      group relative rounded-[20px] overflow-hidden
+                      transition-all duration-500 ease-out
+                      ${isFull
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] cursor-pointer'
+                      }
+                    `}
+                    onClick={() => !isFull && handleBooking(slot.id)}
+                  >
+                    {/* カード全体 - サンドベージュ */}
+                    <div className={`${cardBgColor} p-7 sm:p-8 min-h-[280px] flex flex-col`}>
+                      {/* カテゴリラベル */}
+                      <p className="text-[11px] sm:text-[12px] text-[#6e6e73] uppercase tracking-[0.08em] font-medium mb-3">
+                        Available
+                      </p>
+
+                      {/* 日付 - 大きく目立つように */}
+                      <div className="mb-4">
+                        <span className="text-[42px] sm:text-[52px] font-semibold text-[#1d1d1f] tracking-[-0.02em] leading-none">
+                          {formatDate(slot.starts_at)}
+                        </span>
+                        <span className="text-[18px] sm:text-[21px] text-[#1d1d1f] ml-2 font-medium">
+                          ({formatWeekday(slot.starts_at)})
+                        </span>
+                      </div>
+
+                      {/* 時間 */}
+                      <p className="text-[15px] sm:text-[17px] text-[#1d1d1f] mb-2 font-normal">
+                        {formatTime(slot.starts_at)} – {slot.ends_at && formatTime(slot.ends_at)}
+                      </p>
+
+                      {/* 残席 */}
+                      <p className="text-[14px] sm:text-[15px] text-[#6e6e73] mb-auto">
+                        {isFull ? '満席' : `残り ${remainingSeats} 席`}
+                      </p>
+
+                      {/* ボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          !isFull && handleBooking(slot.id);
+                        }}
+                        disabled={isFull}
+                        className={`
+                          mt-6 w-full py-3 sm:py-3.5 rounded-[980px] text-[14px] sm:text-[15px] font-medium
+                          transition-all duration-200
+                          ${isFull
+                            ? 'bg-[#d2d2d7] text-[#86868b] cursor-not-allowed'
+                            : 'bg-[#1d1d1f] text-white hover:bg-[#000]'
+                          }
+                        `}
+                      >
+                        {isFull ? '満席です' : '予約する'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+      </section>
 
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-6 sm:p-8 rounded-xl shadow-md">
-          <h3 className="text-xl font-bold mb-4 text-blue-900 flex items-center">
-            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            予約の流れ
-          </h3>
-          <ol className="space-y-3">
-            <li className="flex items-start">
-              <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">1</span>
-              <span className="text-blue-900 pt-1">上記の日程一覧から希望の日時を選択</span>
-            </li>
-            <li className="flex items-start">
-              <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">2</span>
-              <span className="text-blue-900 pt-1">予約フォームに必要情報を入力</span>
-            </li>
-            <li className="flex items-start">
-              <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">3</span>
-              <span className="text-blue-900 pt-1">予約完了後、確認画面が表示されます</span>
-            </li>
-          </ol>
+      {/* 予約の流れセクション */}
+      <section className="bg-white py-16 sm:py-24">
+        <div className="max-w-[800px] mx-auto px-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <p className="text-[12px] sm:text-[13px] text-[#6e6e73] uppercase tracking-[0.06em] mb-2">
+              HOW IT WORKS
+            </p>
+            <h2 className="text-[28px] sm:text-[40px] font-semibold text-[#1d1d1f] tracking-[-0.015em] leading-[1.1]">
+              予約の流れ
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
+            <div className="text-center">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-4 sm:mb-5 rounded-full bg-[#1d1d1f] flex items-center justify-center">
+                <span className="text-[17px] sm:text-[19px] font-semibold text-white">1</span>
+              </div>
+              <h3 className="text-[17px] sm:text-[19px] font-semibold text-[#1d1d1f] mb-2">日程を選ぶ</h3>
+              <p className="text-[14px] sm:text-[15px] text-[#6e6e73] leading-[1.5]">ご希望の日程を<br />選択してください</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-4 sm:mb-5 rounded-full bg-[#1d1d1f] flex items-center justify-center">
+                <span className="text-[17px] sm:text-[19px] font-semibold text-white">2</span>
+              </div>
+              <h3 className="text-[17px] sm:text-[19px] font-semibold text-[#1d1d1f] mb-2">情報を入力</h3>
+              <p className="text-[14px] sm:text-[15px] text-[#6e6e73] leading-[1.5]">講師名、ジャンルを入力</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-4 sm:mb-5 rounded-full bg-[#1d1d1f] flex items-center justify-center">
+                <span className="text-[17px] sm:text-[19px] font-semibold text-white">3</span>
+              </div>
+              <h3 className="text-[17px] sm:text-[19px] font-semibold text-[#1d1d1f] mb-2">予約完了</h3>
+              <p className="text-[14px] sm:text-[15px] text-[#6e6e73] leading-[1.5]">Googleカレンダーに登録し、<br />完了です</p>
+            </div>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* フッター */}
+      <footer className="bg-[#f5f5f7] border-t border-[#d2d2d7]/50">
+        <div className="max-w-[980px] mx-auto px-6 py-4">
+          <p className="text-[11px] sm:text-[12px] text-[#6e6e73] text-center">
+            Copyright © 2026 アカウント添削会. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

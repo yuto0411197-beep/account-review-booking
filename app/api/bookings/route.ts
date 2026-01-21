@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { slot_id, name, email, coach_name, genre, prework_url } = body;
 
-    // 必須項目のバリデーション
-    if (!slot_id || !name || !email || !coach_name || !genre) {
+    // 必須項目のバリデーション（name/emailはcoach_nameから自動生成可能）
+    if (!slot_id || !coach_name || !genre) {
       console.warn('[API] Bookings POST: 必須項目不足');
       return NextResponse.json(
         { error: '必須項目が入力されていません' },
@@ -22,20 +22,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Bookings POST: 予約作成開始 - slot_id: ${slot_id}, email: ${email}`);
+    // name/emailが未入力の場合はcoach_nameから自動生成
+    const finalName = name || coach_name;
+    const finalEmail = email || `booking_${Date.now()}@noemail.local`;
+
+    console.log(`[API] Bookings POST: 予約作成開始 - slot_id: ${slot_id}, coach_name: ${coach_name}`);
 
     // RPC経由で予約を作成（トランザクション処理）
     const { data, error } = await supabase.rpc('create_booking', {
       p_slot_id: slot_id,
-      p_name: name,
-      p_email: email,
+      p_name: finalName,
+      p_email: finalEmail,
       p_coach_name: coach_name,
       p_genre: genre,
       p_prework_url: prework_url || null
     });
 
     if (error) {
-      logApiError('/api/bookings RPC', error, { slot_id, email });
+      logApiError('/api/bookings RPC', error, { slot_id, coach_name });
       return NextResponse.json(
         {
           error: 'サーバーエラーが発生しました。しばらく待ってから再度お試しください。',
@@ -80,22 +84,26 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (slotData) {
-      // 予約確認メールを送信
-      try {
-        await sendBookingConfirmation({
-          to: email,
-          name,
-          slotStartsAt: slotData.starts_at,
-          slotEndsAt: slotData.ends_at,
-          coachName: coach_name,
-          genre,
-          preworkUrl: prework_url,
-          zoomUrl: slotData.zoom_url
-        });
-        console.log(`[API] Bookings POST: 確認メール送信完了 - ${email}`);
-      } catch (emailError) {
-        console.error('[API] Bookings POST: メール送信エラー', emailError);
-        // メール送信失敗は予約処理全体を失敗させない
+      // 予約確認メールを送信（実際のメールアドレスが入力された場合のみ）
+      if (email && !finalEmail.includes('@noemail.local')) {
+        try {
+          await sendBookingConfirmation({
+            to: finalEmail,
+            name: finalName,
+            slotStartsAt: slotData.starts_at,
+            slotEndsAt: slotData.ends_at,
+            coachName: coach_name,
+            genre,
+            preworkUrl: prework_url,
+            zoomUrl: slotData.zoom_url
+          });
+          console.log(`[API] Bookings POST: 確認メール送信完了 - ${finalEmail}`);
+        } catch (emailError) {
+          console.error('[API] Bookings POST: メール送信エラー', emailError);
+          // メール送信失敗は予約処理全体を失敗させない
+        }
+      } else {
+        console.log('[API] Bookings POST: メールアドレス未入力のためメール送信スキップ');
       }
     }
 

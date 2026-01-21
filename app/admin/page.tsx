@@ -7,18 +7,26 @@ import { Slot } from '@/lib/types';
 export default function AdminPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [startsAt, setStartsAt] = useState('');
-  const [zoomUrl, setZoomUrl] = useState('');
+  const [capacity, setCapacity] = useState(5);
   const [token, setToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [defaultZoomUrl, setDefaultZoomUrl] = useState('');
+  const [isEditingZoomUrl, setIsEditingZoomUrl] = useState(false);
+  const [tempZoomUrl, setTempZoomUrl] = useState('');
 
   useEffect(() => {
     const storedToken = localStorage.getItem('adminToken');
     if (storedToken) {
       setIsAuthenticated(true);
       fetchSlots();
+    }
+    // デフォルトZoom URLを読み込み
+    const storedZoomUrl = localStorage.getItem('defaultZoomUrl');
+    if (storedZoomUrl) {
+      setDefaultZoomUrl(storedZoomUrl);
     }
   }, []);
 
@@ -34,6 +42,56 @@ export default function AdminPage() {
     setIsAuthenticated(false);
     setSlots([]);
     setToken('');
+  };
+
+  const handleSaveDefaultZoomUrl = () => {
+    localStorage.setItem('defaultZoomUrl', tempZoomUrl);
+    setDefaultZoomUrl(tempZoomUrl);
+    setIsEditingZoomUrl(false);
+    setSuccessMessage('デフォルトZoom URLを保存しました');
+  };
+
+  const handleApplyZoomUrlToAll = async () => {
+    if (!defaultZoomUrl) {
+      setError('先にデフォルトZoom URLを設定してください');
+      return;
+    }
+
+    if (!confirm('全ての日程枠にこのZoom URLを適用しますか？')) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      let successCount = 0;
+
+      for (const slot of slots) {
+        const response = await fetch(`/api/slots/${slot.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            zoom_url: defaultZoomUrl
+          })
+        });
+
+        if (response.ok) {
+          successCount++;
+        }
+      }
+
+      setSuccessMessage(`${successCount}件の日程枠にZoom URLを適用しました`);
+      fetchSlots();
+    } catch (err) {
+      setError('Zoom URLの適用中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchSlots = async () => {
@@ -72,15 +130,15 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           starts_at: startsAtWithTimezone,
-          capacity: 5,
-          zoom_url: zoomUrl || null
+          capacity: capacity,
+          zoom_url: defaultZoomUrl || null
         })
       });
 
       if (response.ok) {
-        setSuccessMessage('日程枠を作成しました');
+        setSuccessMessage(`定員${capacity}名の日程枠を作成しました` + (defaultZoomUrl ? '（Zoom URL自動設定）' : ''));
         setStartsAt('');
-        setZoomUrl('');
+        setCapacity(5);
         fetchSlots();
       } else {
         const data = await response.json();
@@ -150,6 +208,46 @@ export default function AdminPage() {
       }
     } catch (err) {
       setError('Zoom URLの更新中にエラーが発生しました');
+    }
+  };
+
+  const handleUpdateCapacity = async (slotId: string, currentCapacity: number, bookedCount: number) => {
+    const newCapacityStr = prompt(`定員を入力してください（現在の予約数: ${bookedCount}名）`, String(currentCapacity));
+    if (newCapacityStr === null) return; // キャンセル
+
+    const newCapacity = parseInt(newCapacityStr);
+    if (isNaN(newCapacity) || newCapacity < 1) {
+      setError('定員は1以上の数字を入力してください');
+      return;
+    }
+
+    if (newCapacity < bookedCount) {
+      setError(`既に${bookedCount}名の予約があるため、定員を${bookedCount}名未満にはできません`);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/slots/${slotId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          capacity: newCapacity
+        })
+      });
+
+      if (response.ok) {
+        setSuccessMessage(`定員を${newCapacity}名に更新しました`);
+        fetchSlots();
+      } else {
+        const data = await response.json();
+        setError(data.error || '定員の更新に失敗しました');
+      }
+    } catch (err) {
+      setError('定員の更新中にエラーが発生しました');
     }
   };
 
@@ -278,6 +376,88 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* デフォルトZoom URL設定 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8 border border-gray-100">
+          <h2 className="text-2xl font-bold mb-6 text-gray-900 flex items-center gap-2">
+            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            デフォルトZoom URL設定
+          </h2>
+          <p className="text-gray-600 mb-4">
+            ここで設定したURLは、新しく作成する全ての日程枠に自動的に適用されます。
+          </p>
+
+          {isEditingZoomUrl ? (
+            <div className="space-y-4">
+              <input
+                type="url"
+                value={tempZoomUrl}
+                onChange={(e) => setTempZoomUrl(e.target.value)}
+                placeholder="https://zoom.us/j/..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveDefaultZoomUrl}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all"
+                >
+                  保存
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditingZoomUrl(false);
+                    setTempZoomUrl(defaultZoomUrl);
+                  }}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {defaultZoomUrl ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800 font-medium mb-1">現在のデフォルトURL:</p>
+                  <a
+                    href={defaultZoomUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 underline break-all"
+                  >
+                    {defaultZoomUrl}
+                  </a>
+                </div>
+              ) : (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-gray-500">デフォルトZoom URLが設定されていません</p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    setTempZoomUrl(defaultZoomUrl);
+                    setIsEditingZoomUrl(true);
+                  }}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all"
+                >
+                  {defaultZoomUrl ? 'URLを変更' : 'URLを設定'}
+                </button>
+                {defaultZoomUrl && slots.length > 0 && (
+                  <button
+                    onClick={handleApplyZoomUrlToAll}
+                    disabled={loading}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all"
+                  >
+                    {loading ? '適用中...' : '全ての日程枠に適用'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* 日程枠作成フォーム */}
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8 border border-gray-100">
           <h2 className="text-2xl font-bold mb-6 text-gray-900 flex items-center gap-2">
@@ -286,6 +466,11 @@ export default function AdminPage() {
             </svg>
             新しい日程枠を作成
           </h2>
+          {defaultZoomUrl && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+              Zoom URL「{defaultZoomUrl.substring(0, 40)}...」が自動的に設定されます
+            </div>
+          )}
           <form onSubmit={handleCreateSlot} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -303,16 +488,18 @@ export default function AdminPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Zoom URL（任意）
+                  定員 <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="url"
-                  value={zoomUrl}
-                  onChange={(e) => setZoomUrl(e.target.value)}
-                  placeholder="https://zoom.us/j/..."
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={capacity}
+                  onChange={(e) => setCapacity(parseInt(e.target.value) || 1)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  required
                 />
-                <p className="mt-1 text-sm text-gray-500">オンライン会議のURLを入力</p>
+                <p className="mt-1 text-sm text-gray-500">1〜100名まで設定可能</p>
               </div>
             </div>
             <div className="flex justify-end">
@@ -379,7 +566,18 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {slot.capacity}名
+                        <div className="flex items-center gap-2">
+                          {slot.capacity}名
+                          <button
+                            onClick={() => handleUpdateCapacity(slot.id, slot.capacity, slot.booked_count)}
+                            className="text-gray-400 hover:text-gray-600"
+                            title="定員を変更"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
