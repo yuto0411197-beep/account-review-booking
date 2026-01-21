@@ -29,7 +29,9 @@ export default function AdminBookingsPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -156,6 +158,41 @@ export default function AdminBookingsPage() {
     });
   };
 
+  const handleCancelBooking = async (bookingId: string, bookingName: string) => {
+    const confirmed = confirm(
+      `「${bookingName}」さんの予約をキャンセルしますか？\n\nこの操作は取り消せません。`
+    );
+
+    if (!confirmed) return;
+
+    setCancellingId(bookingId);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || '予約のキャンセルに失敗しました');
+      }
+
+      setSuccessMessage(`「${bookingName}」さんの予約をキャンセルしました`);
+      // 予約一覧を再取得
+      fetchBookings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '予約のキャンセルに失敗しました');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen p-8 bg-gradient-to-br from-slate-50 to-blue-50">
@@ -201,6 +238,12 @@ export default function AdminBookingsPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+            {successMessage}
           </div>
         )}
 
@@ -299,8 +342,32 @@ export default function AdminBookingsPage() {
                                 </a>
                               </div>
                             )}
-                            <div className="mt-3 text-sm text-gray-400">
-                              予約日時: {formatDateTime(booking.created_at)}
+                            <div className="mt-3 flex items-center justify-between">
+                              <span className="text-sm text-gray-400">
+                                予約日時: {formatDateTime(booking.created_at)}
+                              </span>
+                              <button
+                                onClick={() => handleCancelBooking(booking.id, booking.coach_name || booking.name)}
+                                disabled={cancellingId === booking.id}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {cancellingId === booking.id ? (
+                                  <>
+                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    キャンセル中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    予約キャンセル
+                                  </>
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>
