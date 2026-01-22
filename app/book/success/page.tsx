@@ -49,7 +49,7 @@ function BookingSuccessContent() {
   const generateGoogleCalendarUrl = () => {
     if (!booking) return '';
 
-    const title = encodeURIComponent(`アカウント添削会`);
+    const title = encodeURIComponent(`カイシャインさん 講師添削会`);
     const startDate = new Date(booking.slots.starts_at);
     // ends_atがnullの場合は開始時刻の1時間後をデフォルトとする
     const endDate = booking.slots.ends_at
