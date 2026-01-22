@@ -51,7 +51,10 @@ function BookingSuccessContent() {
 
     const title = encodeURIComponent(`アカウント添削会`);
     const startDate = new Date(booking.slots.starts_at);
-    const endDate = new Date(booking.slots.ends_at);
+    // ends_atがnullの場合は開始時刻の1時間後をデフォルトとする
+    const endDate = booking.slots.ends_at
+      ? new Date(booking.slots.ends_at)
+      : new Date(startDate.getTime() + 60 * 60 * 1000);
 
     // ISO形式をGoogleカレンダー形式に変換 (YYYYMMDDTHHmmssZ)
     const formatDate = (date: Date) => {
