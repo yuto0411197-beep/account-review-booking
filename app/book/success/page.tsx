@@ -67,7 +67,7 @@ function BookingSuccessContent() {
       `ジャンル: ${booking.genre}\n\n` +
       `カイシャインさんによる参加必須のアカウント添削会を行います。\n` +
       `予定時刻の5分前には着席をお願いいたします！` +
-      (booking.slots.zoom_url ? `\n\nZoom: ${booking.slots.zoom_url}` : '')
+      (booking.slots.zoom_url ? `\n\n━━━━━━━━━━━━━━━\nZoom URL:\n${booking.slots.zoom_url}` : '')
     );
 
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${details}&ctz=Asia/Tokyo`;
