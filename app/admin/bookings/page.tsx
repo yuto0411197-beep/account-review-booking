@@ -438,16 +438,50 @@ export default function AdminBookingsPage() {
 
               {/* ChatGPT連携ヒント */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  AIで名簿を作成するヒント
+                  名簿ファイルの作り方（ChatGPT活用）
                 </h3>
-                <p className="text-sm text-blue-700">
-                  ChatGPTに「以下の名簿をCSV形式（1行に1名）に変換してください」と依頼すると、
-                  様々な形式の名簿をこのシステムで読み込める形式に変換できます。
-                </p>
+
+                <div className="space-y-4 text-sm text-blue-800">
+                  <div>
+                    <p className="font-medium mb-2">【手順】</p>
+                    <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                      <li>ChatGPTを開く</li>
+                      <li>以下のプロンプトをコピーして貼り付ける</li>
+                      <li>その下に名簿を貼り付けて送信</li>
+                      <li>出力されたテキストを.txtファイルとして保存</li>
+                      <li>このシステムにアップロード</li>
+                    </ol>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-2">【ChatGPTに送るプロンプト例】</p>
+                    <div className="bg-white border border-blue-300 rounded-lg p-3 font-mono text-xs">
+                      <p className="text-gray-700 whitespace-pre-wrap">以下の名簿から名前だけを抽出して、1行に1名の形式で出力してください。余計な記号や番号は除いてください。{'\n\n'}（ここに名簿を貼り付け）</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-2">【変換例】</p>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="bg-white border border-blue-300 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">変換前（様々な形式OK）</p>
+                        <p className="font-mono text-xs text-gray-700 whitespace-pre-wrap">1. 山田太郎（営業部）{'\n'}2. 佐藤花子 / 開発部{'\n'}3. 鈴木一郎　マーケ</p>
+                      </div>
+                      <div className="bg-white border border-blue-300 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">変換後（このシステム用）</p>
+                        <p className="font-mono text-xs text-gray-700 whitespace-pre-wrap">山田太郎{'\n'}佐藤花子{'\n'}鈴木一郎</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-blue-600">
+                    ※ Excelやスプレッドシートからコピーした表形式でも、ChatGPTが自動で整形してくれます
+                  </p>
+                </div>
               </div>
             </div>
           )}
