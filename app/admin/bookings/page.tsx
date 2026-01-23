@@ -37,8 +37,13 @@ export default function AdminBookingsPage() {
   const [requiredCoaches, setRequiredCoaches] = useState<string[]>([]);
   const [missingCoaches, setMissingCoaches] = useState<string[]>([]);
   const [bookedCoaches, setBookedCoaches] = useState<string[]>([]);
+  const [duplicateCoaches, setDuplicateCoaches] = useState<{name: string, count: number}[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+
+  // 全体統計用
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [allDuplicates, setAllDuplicates] = useState<{name: string, count: number}[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -49,6 +54,42 @@ export default function AdminBookingsPage() {
 
     fetchBookings();
   }, [router]);
+
+  // 予約データが変わったら全体統計を更新
+  useEffect(() => {
+    if (slots.length > 0) {
+      calculateOverallStats();
+    }
+  }, [slots]);
+
+  // 全体統計を計算（重複チェック含む）
+  const calculateOverallStats = () => {
+    let total = 0;
+    const allNames: string[] = [];
+
+    slots.forEach(slot => {
+      total += slot.bookings?.length || 0;
+      slot.bookings?.forEach(booking => {
+        if (booking.coach_name) {
+          allNames.push(booking.coach_name);
+        }
+      });
+    });
+
+    setTotalBookings(total);
+
+    // 重複チェック
+    const nameCountMap: { [key: string]: number } = {};
+    allNames.forEach(name => {
+      const normalizedName = name.replace(/【.*?】/g, '').trim();
+      nameCountMap[normalizedName] = (nameCountMap[normalizedName] || 0) + 1;
+    });
+
+    const duplicates = Object.entries(nameCountMap)
+      .filter(([_, count]) => count > 1)
+      .map(([name, count]) => ({ name, count }));
+    setAllDuplicates(duplicates);
+  };
 
   const fetchBookings = async () => {
     try {
@@ -215,17 +256,27 @@ export default function AdminBookingsPage() {
     const allBookedNames: string[] = [];
     slots.forEach(slot => {
       slot.bookings?.forEach(booking => {
-        // coach_nameまたはnameを追加
+        // coach_nameを追加
         if (booking.coach_name) {
           allBookedNames.push(booking.coach_name);
-        }
-        if (booking.name && booking.name !== booking.coach_name) {
-          allBookedNames.push(booking.name);
         }
       });
     });
 
     setBookedCoaches(allBookedNames);
+
+    // 重複チェック（同じ名前で複数回予約している人を検出）
+    const nameCountMap: { [key: string]: number } = {};
+    allBookedNames.forEach(name => {
+      // 名前を正規化（【講師】などを除去）
+      const normalizedName = name.replace(/【.*?】/g, '').trim();
+      nameCountMap[normalizedName] = (nameCountMap[normalizedName] || 0) + 1;
+    });
+
+    const duplicates = Object.entries(nameCountMap)
+      .filter(([_, count]) => count > 1)
+      .map(([name, count]) => ({ name, count }));
+    setDuplicateCoaches(duplicates);
 
     // 名簿にあるが予約がない人を検出
     const missing = requiredNames.filter(requiredName => {
@@ -244,6 +295,7 @@ export default function AdminBookingsPage() {
     setRequiredCoaches([]);
     setMissingCoaches([]);
     setBookedCoaches([]);
+    setDuplicateCoaches([]);
     setShowComparison(false);
     setUploadedFileName('');
   };
@@ -337,6 +389,108 @@ export default function AdminBookingsPage() {
           </div>
         )}
 
+        {/* 全体サマリー */}
+        {slots.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              予約状況サマリー
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-blue-600">{totalBookings}</div>
+                <div className="text-sm text-gray-600">総予約件数</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-purple-600">{slots.length}</div>
+                <div className="text-sm text-gray-600">日程数</div>
+              </div>
+              <div className={`rounded-lg p-4 text-center ${allDuplicates.length > 0 ? 'bg-orange-50' : 'bg-green-50'}`}>
+                <div className={`text-3xl font-bold ${allDuplicates.length > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  {allDuplicates.length}
+                </div>
+                <div className="text-sm text-gray-600">二重登録者</div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-gray-700">
+                  {slots.reduce((sum, slot) => sum + slot.capacity, 0)}
+                </div>
+                <div className="text-sm text-gray-600">総定員</div>
+              </div>
+            </div>
+
+            {/* 二重登録者がいる場合は警告表示 */}
+            {allDuplicates.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
+                <h3 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  二重登録の可能性あり
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {allDuplicates.map((item, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 bg-white border border-orange-300 rounded-full text-sm text-orange-700"
+                    >
+                      {item.name} <span className="ml-1 font-bold">({item.count}回)</span>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-orange-600 mt-2">
+                  ※ 同じ名前で複数回予約されています。下記から該当者を確認し、不要な予約をキャンセルしてください。
+                </p>
+              </div>
+            )}
+
+            {/* 日程ごとの予約者サマリー（コンパクト表示） */}
+            <div className="mt-6">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                日程別 予約者一覧（クイックビュー）
+              </h3>
+              <div className="space-y-3">
+                {slots.map((slot) => (
+                  <div key={`summary-${slot.id}`} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-900">
+                        {formatDate(slot.starts_at)} {formatTime(slot.starts_at)}〜
+                      </span>
+                      <span className={`text-sm font-medium px-2 py-1 rounded-full ${
+                        slot.booked_count >= slot.capacity
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {slot.booked_count}/{slot.capacity}名
+                      </span>
+                    </div>
+                    {slot.bookings && slot.bookings.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {slot.bookings.map((booking, idx) => (
+                          <span
+                            key={booking.id}
+                            className="inline-flex items-center px-2 py-0.5 bg-white border border-gray-200 rounded text-xs text-gray-700"
+                          >
+                            {booking.coach_name || booking.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">予約なし</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 名簿チェック機能 */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -401,6 +555,31 @@ export default function AdminBookingsPage() {
                   <div className="text-sm text-gray-600">未予約</div>
                 </div>
               </div>
+
+              {/* 重複登録者リスト */}
+              {duplicateCoaches.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    二重登録の可能性あり ({duplicateCoaches.length}名)
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {duplicateCoaches.map((item, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 bg-white border border-orange-300 rounded-full text-sm text-orange-700"
+                      >
+                        {item.name} <span className="ml-1 font-bold">({item.count}回)</span>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-orange-600 mt-3">
+                    ※ 同じ名前で複数回予約されています。確認して不要な予約をキャンセルしてください。
+                  </p>
+                </div>
+              )}
 
               {/* 未予約者リスト */}
               {missingCoaches.length > 0 ? (
