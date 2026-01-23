@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { starts_at, capacity = 5, zoom_url } = body;
+    const { starts_at, capacity = 5, zoom_url, duration_hours = 1 } = body;
 
     if (!starts_at) {
       console.warn('[API] Slots POST: starts_at が未指定');
@@ -78,8 +78,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // duration_hours のバリデーション（0.5〜10時間、30分単位）
+    const durationHoursNum = parseFloat(String(duration_hours));
+    if (isNaN(durationHoursNum) || durationHoursNum < 0.5 || durationHoursNum > 10 || (durationHoursNum * 2) % 1 !== 0) {
+      console.warn('[API] Slots POST: duration_hours が不正', { duration_hours });
+      return NextResponse.json(
+        { error: '講義時間は0.5〜10時間の範囲で、30分単位で指定してください' },
+        { status: 400 }
+      );
+    }
+
+    // ends_at を計算
+    const startsAtDate = new Date(starts_at);
+    const endsAtDate = new Date(startsAtDate.getTime() + durationHoursNum * 60 * 60 * 1000);
+    const ends_at = endsAtDate.toISOString();
+
     console.log('[API] Slots POST: 日程枠作成開始', {
       starts_at,
+      ends_at,
+      duration_hours: durationHoursNum,
       capacity,
       timestamp: new Date().toISOString()
     });
@@ -87,6 +104,8 @@ export async function POST(request: NextRequest) {
     // 日程枠を作成
     const insertData: any = {
       starts_at,
+      ends_at,
+      duration_hours: durationHoursNum,
       capacity,
       status: 'open'
     };

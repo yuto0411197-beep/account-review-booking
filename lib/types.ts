@@ -15,6 +15,7 @@ export interface Database {
           id: string
           starts_at: string
           ends_at: string | null
+          duration_hours: number
           capacity: number
           booked_count: number
           status: 'open' | 'closed'
@@ -24,6 +25,8 @@ export interface Database {
         Insert: {
           id?: string
           starts_at: string
+          ends_at?: string
+          duration_hours?: number
           capacity?: number
           booked_count?: number
           status?: 'open' | 'closed'
@@ -33,6 +36,8 @@ export interface Database {
         Update: {
           id?: string
           starts_at?: string
+          ends_at?: string
+          duration_hours?: number
           capacity?: number
           booked_count?: number
           status?: 'open' | 'closed'

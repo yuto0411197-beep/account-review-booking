@@ -8,6 +8,7 @@ export default function AdminPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [startsAt, setStartsAt] = useState('');
   const [capacity, setCapacity] = useState(5);
+  const [durationHours, setDurationHours] = useState(1);
   const [token, setToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -131,14 +132,17 @@ export default function AdminPage() {
         body: JSON.stringify({
           starts_at: startsAtWithTimezone,
           capacity: capacity,
+          duration_hours: durationHours,
           zoom_url: defaultZoomUrl || null
         })
       });
 
       if (response.ok) {
-        setSuccessMessage(`定員${capacity}名の日程枠を作成しました` + (defaultZoomUrl ? '（Zoom URL自動設定）' : ''));
+        const durationDisplay = durationHours === 0.5 ? '30分' : durationHours % 1 === 0 ? `${durationHours}時間` : `${Math.floor(durationHours)}時間30分`;
+        setSuccessMessage(`${durationDisplay}・定員${capacity}名の日程枠を作成しました` + (defaultZoomUrl ? '（Zoom URL自動設定）' : ''));
         setStartsAt('');
         setCapacity(5);
+        setDurationHours(1);
         fetchSlots();
       } else {
         const data = await response.json();
@@ -248,6 +252,55 @@ export default function AdminPage() {
       }
     } catch (err) {
       setError('定員の更新中にエラーが発生しました');
+    }
+  };
+
+  const formatDurationHours = (hours: number) => {
+    if (hours === 0.5) {
+      return '30分';
+    } else if (hours % 1 === 0) {
+      return `${hours}時間`;
+    } else {
+      return `${Math.floor(hours)}時間30分`;
+    }
+  };
+
+  const handleUpdateDurationHours = async (slotId: string, currentDurationHours: number) => {
+    const currentDisplay = formatDurationHours(currentDurationHours);
+    const newDurationStr = prompt(
+      `講義時間を入力してください（0.5〜10、30分単位）\n例: 1, 1.5, 2, 2.5 など\n現在: ${currentDisplay}`,
+      String(currentDurationHours)
+    );
+    if (newDurationStr === null) return; // キャンセル
+
+    const newDuration = parseFloat(newDurationStr);
+    if (isNaN(newDuration) || newDuration < 0.5 || newDuration > 10 || (newDuration * 2) % 1 !== 0) {
+      setError('講義時間は0.5〜10時間の範囲で、30分単位（0.5刻み）で入力してください');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/slots/${slotId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          duration_hours: newDuration
+        })
+      });
+
+      if (response.ok) {
+        setSuccessMessage(`講義時間を${formatDurationHours(newDuration)}に更新しました`);
+        fetchSlots();
+      } else {
+        const data = await response.json();
+        setError(data.error || '講義時間の更新に失敗しました');
+      }
+    } catch (err) {
+      setError('講義時間の更新中にエラーが発生しました');
     }
   };
 
@@ -472,7 +525,7 @@ export default function AdminPage() {
             </div>
           )}
           <form onSubmit={handleCreateSlot} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   開始日時 <span className="text-red-500">*</span>
@@ -485,6 +538,24 @@ export default function AdminPage() {
                   required
                 />
                 <p className="mt-1 text-sm text-gray-500">日本時間（JST）で入力してください</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  講義時間 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={durationHours}
+                  onChange={(e) => setDurationHours(parseFloat(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  required
+                >
+                  {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map((hours) => (
+                    <option key={hours} value={hours}>
+                      {hours === 0.5 ? '30分' : hours % 1 === 0 ? `${hours}時間` : `${Math.floor(hours)}時間30分`}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-sm text-gray-500">講義の長さを選択してください</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -541,6 +612,7 @@ export default function AdminPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">日時</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">講義時間</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">定員</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">予約数</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Zoom URL</th>
@@ -564,6 +636,20 @@ export default function AdminPage() {
                             })}
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center gap-2">
+                          {formatDurationHours(slot.duration_hours || 1)}
+                          <button
+                            onClick={() => handleUpdateDurationHours(slot.id, slot.duration_hours || 1)}
+                            className="text-gray-400 hover:text-gray-600"
+                            title="講義時間を変更"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-2">
