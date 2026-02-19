@@ -64,6 +64,17 @@ export default function Home() {
   // カード背景色 - サンドベージュで統一
   const cardBgColor = 'bg-[#f0e6d8]';
 
+  // スロットを月ごとにグループ化
+  const groupedSlots = slots.reduce<Record<string, Slot[]>>((groups, slot) => {
+    const date = new Date(slot.starts_at);
+    const key = `${date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', timeZone: 'Asia/Tokyo' })}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(slot);
+    return groups;
+  }, {});
+
+  const monthKeys = Object.keys(groupedSlots);
+
   return (
     <div className="min-h-screen bg-white">
       {/* ヘッダー - ライトグレー */}
@@ -118,73 +129,82 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {slots.map((slot) => {
-                const remainingSeats = slot.capacity - slot.booked_count;
-                const isFull = slot.status === 'closed';
-
-                return (
-                  <div
-                    key={slot.id}
-                    className={`
-                      group relative rounded-[20px] overflow-hidden
-                      transition-all duration-500 ease-out
-                      ${isFull
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] cursor-pointer'
-                      }
-                    `}
-                    onClick={() => !isFull && handleBooking(slot.id)}
-                  >
-                    {/* カード全体 - サンドベージュ */}
-                    <div className={`${cardBgColor} p-7 sm:p-8 min-h-[280px] flex flex-col`}>
-                      {/* カテゴリラベル */}
-                      <p className="text-[11px] sm:text-[12px] text-[#6e6e73] uppercase tracking-[0.08em] font-medium mb-3">
-                        Available
-                      </p>
-
-                      {/* 日付 - 大きく目立つように */}
-                      <div className="mb-4">
-                        <span className="text-[42px] sm:text-[52px] font-semibold text-[#1d1d1f] tracking-[-0.02em] leading-none">
-                          {formatDate(slot.starts_at)}
-                        </span>
-                        <span className="text-[18px] sm:text-[21px] text-[#1d1d1f] ml-2 font-medium">
-                          ({formatWeekday(slot.starts_at)})
-                        </span>
-                      </div>
-
-                      {/* 時間 */}
-                      <p className="text-[15px] sm:text-[17px] text-[#1d1d1f] mb-2 font-normal">
-                        {formatTime(slot.starts_at)} – {slot.ends_at && formatTime(slot.ends_at)}
-                      </p>
-
-                      {/* 残席 */}
-                      <p className="text-[14px] sm:text-[15px] text-[#6e6e73] mb-auto">
-                        {isFull ? '満席' : `残り ${remainingSeats} 席`}
-                      </p>
-
-                      {/* ボタン */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          !isFull && handleBooking(slot.id);
-                        }}
-                        disabled={isFull}
-                        className={`
-                          mt-6 w-full py-3 sm:py-3.5 rounded-[980px] text-[14px] sm:text-[15px] font-medium
-                          transition-all duration-200
-                          ${isFull
-                            ? 'bg-[#d2d2d7] text-[#86868b] cursor-not-allowed'
-                            : 'bg-[#1d1d1f] text-white hover:bg-[#000] cursor-pointer'
-                          }
-                        `}
-                      >
-                        {isFull ? '満席です' : '予約する'}
-                      </button>
-                    </div>
+            <div className="space-y-12 sm:space-y-16">
+              {monthKeys.map((monthLabel) => (
+                <div key={monthLabel}>
+                  {/* 月ヘッダー */}
+                  <div className="flex items-center gap-4 mb-6 sm:mb-8">
+                    <h3 className="text-[24px] sm:text-[32px] font-semibold text-[#1d1d1f] tracking-[-0.01em] whitespace-nowrap">
+                      {monthLabel}
+                    </h3>
+                    <div className="flex-1 h-px bg-[#d2d2d7]"></div>
                   </div>
-                );
-              })}
+
+                  {/* カードグリッド */}
+                  <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {groupedSlots[monthLabel].map((slot) => {
+                      const remainingSeats = slot.capacity - slot.booked_count;
+                      const isFull = slot.status === 'closed';
+
+                      return (
+                        <div
+                          key={slot.id}
+                          className={`
+                            group relative rounded-[20px] overflow-hidden
+                            transition-all duration-500 ease-out
+                            ${isFull
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] cursor-pointer'
+                            }
+                          `}
+                          onClick={() => !isFull && handleBooking(slot.id)}
+                        >
+                          <div className={`${cardBgColor} p-7 sm:p-8 min-h-[280px] flex flex-col`}>
+                            <p className="text-[11px] sm:text-[12px] text-[#6e6e73] uppercase tracking-[0.08em] font-medium mb-3">
+                              Available
+                            </p>
+
+                            <div className="mb-4">
+                              <span className="text-[42px] sm:text-[52px] font-semibold text-[#1d1d1f] tracking-[-0.02em] leading-none">
+                                {formatDate(slot.starts_at)}
+                              </span>
+                              <span className="text-[18px] sm:text-[21px] text-[#1d1d1f] ml-2 font-medium">
+                                ({formatWeekday(slot.starts_at)})
+                              </span>
+                            </div>
+
+                            <p className="text-[15px] sm:text-[17px] text-[#1d1d1f] mb-2 font-normal">
+                              {formatTime(slot.starts_at)} – {slot.ends_at && formatTime(slot.ends_at)}
+                            </p>
+
+                            <p className="text-[14px] sm:text-[15px] text-[#6e6e73] mb-auto">
+                              {isFull ? '満席' : `残り ${remainingSeats} 席`}
+                            </p>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                !isFull && handleBooking(slot.id);
+                              }}
+                              disabled={isFull}
+                              className={`
+                                mt-6 w-full py-3 sm:py-3.5 rounded-[980px] text-[14px] sm:text-[15px] font-medium
+                                transition-all duration-200
+                                ${isFull
+                                  ? 'bg-[#d2d2d7] text-[#86868b] cursor-not-allowed'
+                                  : 'bg-[#1d1d1f] text-white hover:bg-[#000] cursor-pointer'
+                                }
+                              `}
+                            >
+                              {isFull ? '満席です' : '予約する'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
