@@ -19,7 +19,10 @@ export default function Home() {
       const response = await fetch('/api/slots');
       if (response.ok) {
         const data = await response.json();
-        setSlots(data);
+        // 過去の日程を非表示にする
+        const now = new Date();
+        const futureSlots = data.filter((slot: Slot) => new Date(slot.starts_at) > now);
+        setSlots(futureSlots);
       }
     } catch (error) {
       console.error('Failed to fetch slots:', error);
@@ -172,7 +175,7 @@ export default function Home() {
                           transition-all duration-200
                           ${isFull
                             ? 'bg-[#d2d2d7] text-[#86868b] cursor-not-allowed'
-                            : 'bg-[#1d1d1f] text-white hover:bg-[#000]'
+                            : 'bg-[#1d1d1f] text-white hover:bg-[#000] cursor-pointer'
                           }
                         `}
                       >
